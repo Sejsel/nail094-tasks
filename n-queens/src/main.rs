@@ -1,10 +1,13 @@
+use std::fs::File;
 use itertools::iproduct;
 use std::process::Command;
+use std::io::Write;
 
 use core::{CnfSat, EvaluationResult, SatModel};
 
 #[derive(Debug)]
 enum Solver {
+    None { generated_cnfs: usize },
     Kissat,
     Cadical,
     Oxisat,
@@ -16,6 +19,10 @@ fn main() -> Result<(), anyhow::Error> {
     let args: Vec<_> = std::env::args().collect();
     let solver = match args.get(1).map(|x| x.as_str()) {
         None => Solver::Kissat,
+        Some("cnf") => {
+            let generated_cnfs = args.get(2).and_then(|x| x.parse::<usize>().ok()).unwrap_or(1);
+            Solver::None { generated_cnfs }
+        },
         Some("cadical") => Solver::Cadical,
         Some("oxisat") => Solver::Oxisat,
         Some("glucose") => Solver::Glucose,
@@ -46,6 +53,15 @@ fn main() -> Result<(), anyhow::Error> {
                 let mut command = Command::new("../solvers/glucose-syrup");
                 command.arg("-model").arg(format!("-nthreads={}", threads));
                 command
+            }
+            Solver::None { generated_cnfs } => {
+                let mut f = File::create(format!("{}.cnf", n)).unwrap();
+                write!(f, "{}", sat.to_dimacs()).unwrap();
+                if n > generated_cnfs {
+                    break;
+                } else {
+                    continue;
+                }
             }
         };
 
