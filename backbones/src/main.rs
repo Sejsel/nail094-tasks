@@ -8,6 +8,15 @@ use core::{CnfClause, CnfSat, EvaluationResult};
 
 mod dimacs;
 
+#[derive(Eq, PartialEq, Copy, Clone)]
+enum VariableValue {
+    None,
+    True,
+    False,
+    Either,
+    Backbone(bool),
+}
+
 fn main() -> Result<(), anyhow::Error> {
     let args = std::env::args().collect();
     let solver = parse_solver(args);
@@ -34,15 +43,6 @@ fn main() -> Result<(), anyhow::Error> {
         sat.clause_count()
     );
 
-    #[derive(Eq, PartialEq, Copy, Clone)]
-    enum VariableValue {
-        None,
-        True,
-        False,
-        Either,
-        Backbone(bool),
-    }
-
     let mut assignments: Vec<_> = vars.iter().map(|_| VariableValue::None).collect();
 
     #[derive(Eq, PartialEq, Copy, Clone, Debug)]
@@ -55,27 +55,6 @@ fn main() -> Result<(), anyhow::Error> {
     }
 
     let mut state = State::FirstRun;
-
-    fn find_backbone_candidate(
-        current_index: usize,
-        values: &[VariableValue],
-    ) -> Option<(usize, bool)> {
-        let next_index = values
-            .iter()
-            .enumerate()
-            .skip(current_index)
-            .find(|(_, &x)| x == VariableValue::False || x == VariableValue::True)
-            .map(|(i, _)| i)?;
-
-        Some((
-            next_index,
-            match values[next_index] {
-                VariableValue::True => true,
-                VariableValue::False => false,
-                _ => unreachable!(),
-            },
-        ))
-    }
 
     loop {
         if let State::Searching {
@@ -184,6 +163,27 @@ fn main() -> Result<(), anyhow::Error> {
     println!("{}", backbones.join(" "));
 
     Ok(())
+}
+
+fn find_backbone_candidate(
+    current_index: usize,
+    values: &[VariableValue],
+) -> Option<(usize, bool)> {
+    let next_index = values
+        .iter()
+        .enumerate()
+        .skip(current_index)
+        .find(|(_, &x)| x == VariableValue::False || x == VariableValue::True)
+        .map(|(i, _)| i)?;
+
+    Some((
+        next_index,
+        match values[next_index] {
+            VariableValue::True => true,
+            VariableValue::False => false,
+            _ => unreachable!(),
+        },
+    ))
 }
 
 fn dimacs_to_sat(dimacs: Dimacs) -> (CnfSat, Vec<usize>) {
