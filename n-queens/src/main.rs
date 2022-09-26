@@ -11,6 +11,7 @@ enum Solver {
     Kissat,
     Cadical,
     Oxisat,
+    OxisatDpll,
     Glucose,
     GlucoseSyrup { threads: usize },
 }
@@ -25,6 +26,7 @@ fn main() -> Result<(), anyhow::Error> {
         },
         Some("cadical") => Solver::Cadical,
         Some("oxisat") => Solver::Oxisat,
+        Some("oxisat-dpll") => Solver::OxisatDpll,
         Some("glucose") => Solver::Glucose,
         Some("glucose-syrup") => {
             let threads = args.get(2).and_then(|x| x.parse::<usize>().ok()).unwrap_or(1);
@@ -43,7 +45,16 @@ fn main() -> Result<(), anyhow::Error> {
         let solver = match solver {
             Solver::Kissat => Command::new("../solvers/kissat"),
             Solver::Cadical => Command::new("../solvers/cadical"),
-            Solver::Oxisat => Command::new("../solvers/oxisat"),
+            Solver::Oxisat => {
+                let mut command = Command::new("../solvers/oxisat");
+                command.arg("cdcl");
+                command
+            },
+            Solver::OxisatDpll => {
+                let mut command = Command::new("../solvers/oxisat");
+                command.arg("dpll");
+                command
+            },
             Solver::Glucose => {
                 let mut command = Command::new("../solvers/glucose");
                 command.arg("-model");
