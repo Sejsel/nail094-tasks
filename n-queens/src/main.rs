@@ -1,39 +1,10 @@
-use std::fs::File;
 use itertools::iproduct;
-use std::process::Command;
-use std::io::Write;
 
+use core::solvers::{build_command, parse_solver};
 use core::{CnfSat, EvaluationResult, SatModel};
 
-#[derive(Debug)]
-enum Solver {
-    None { generated_cnfs: usize },
-    Kissat,
-    Cadical,
-    Oxisat,
-    OxisatDpll,
-    Glucose,
-    GlucoseSyrup { threads: usize },
-}
-
 fn main() -> Result<(), anyhow::Error> {
-    let args: Vec<_> = std::env::args().collect();
-    let solver = match args.get(1).map(|x| x.as_str()) {
-        None => Solver::Kissat,
-        Some("cnf") => {
-            let generated_cnfs = args.get(2).and_then(|x| x.parse::<usize>().ok()).unwrap_or(1);
-            Solver::None { generated_cnfs }
-        },
-        Some("cadical") => Solver::Cadical,
-        Some("oxisat") => Solver::Oxisat,
-        Some("oxisat-dpll") => Solver::OxisatDpll,
-        Some("glucose") => Solver::Glucose,
-        Some("glucose-syrup") => {
-            let threads = args.get(2).and_then(|x| x.parse::<usize>().ok()).unwrap_or(1);
-            Solver::GlucoseSyrup { threads }
-        },
-        _ => Solver::Kissat
-    };
+    let solver = parse_solver(std::env::args().collect());
 
     eprintln!("Using solver {solver:?}");
 
@@ -42,47 +13,13 @@ fn main() -> Result<(), anyhow::Error> {
         add_queen_vars(&mut sat, n);
         add_queen_restrictions(&mut sat, n);
 
-        let solver = match solver {
-            Solver::Kissat => Command::new("../solvers/kissat"),
-            Solver::Cadical => Command::new("../solvers/cadical"),
-            Solver::Oxisat => {
-                let mut command = Command::new("../solvers/oxisat");
-                command.arg("cdcl");
-                command
-            },
-            Solver::OxisatDpll => {
-                let mut command = Command::new("../solvers/oxisat");
-                command.arg("dpll");
-                command
-            },
-            Solver::Glucose => {
-                let mut command = Command::new("../solvers/glucose");
-                command.arg("-model");
-                command
-            },
-            Solver::GlucoseSyrup { threads } => {
-                let mut command = Command::new("../solvers/glucose-syrup");
-                command.arg("-model").arg(format!("-nthreads={}", threads));
-                command
-            }
-            Solver::None { generated_cnfs } => {
-                let mut f = File::create(format!("{}.cnf", n)).unwrap();
-                write!(f, "{}", sat.to_dimacs()).unwrap();
-                if n > generated_cnfs {
-                    break;
-                } else {
-                    continue;
-                }
-            }
-        };
-
         println!(
             "Starting {n}, {} vars, {} clauses",
             sat.variable_count(),
             sat.clause_count()
         );
 
-        let result = sat.evaluate(solver);
+        let result = sat.evaluate(build_command(&solver));
         match result {
             EvaluationResult::Sat { model, time, .. } => {
                 println!("Finished {n} in {time:?}, model:");

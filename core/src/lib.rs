@@ -1,3 +1,5 @@
+pub mod solvers;
+
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::io::Write;
