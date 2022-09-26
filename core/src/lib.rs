@@ -67,6 +67,11 @@ impl CnfSat {
         self.clauses.push(clause);
     }
 
+    /// Remove the last added clause.
+    pub fn pop_clause(&mut self) -> Option<CnfClause> {
+        self.clauses.pop()
+    }
+
     pub fn get_variable_by_id(&self, id: usize) -> Option<&SatVariable> {
         // TODO: This is not particularly effective.
         let (_, var) = self.variables.iter().find(|(_, var)| var.id == id)?;
@@ -221,8 +226,8 @@ impl SatModel {
         }
     }
 
-    pub fn get_result_by_id(&self, id: &usize) -> Option<bool> {
-        let value = self.results_by_id.get(id)?;
+    pub fn get_result_by_id(&self, id: usize) -> Option<bool> {
+        let value = self.results_by_id.get(&id)?;
         Some(*value)
     }
 

@@ -9,3 +9,4 @@ edition = "2021"
 core = { path = "../core" }
 anyhow = "1.0.58"
 itertools = "0.10.3"
+nom = "7.1.1"
